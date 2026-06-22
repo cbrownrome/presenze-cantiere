@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Presenze Magazzino</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f4f0; --surface: #ffffff; --border: #e2e0d8;
+  --text: #1a1a18; --text-muted: #6b6b66;
+  --accent: #1a1a18; --accent-fg: #ffffff;
+  --radius: 14px; --radius-sm: 9px;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; padding: 2rem 1rem 5rem;
+}
+header { text-align: center; margin-bottom: 2rem; width: 100%; max-width: 420px; }
+.label { font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem; }
+h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+.sub { font-size: 14px; color: var(--text-muted); margin-top: 0.3rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 420px; padding: 1.25rem; }
+.search-wrap { position: relative; margin-bottom: 1rem; }
+.search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; width: 16px; height: 16px; }
+#search { width: 100%; padding: 0.72rem 0.75rem 0.72rem 2.4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 16px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+#search:focus { border-color: #999; }
+.list-wrap { max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.letter-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--text-muted); padding: 6px 4px 3px; text-transform: uppercase; }
+.person-btn { display: flex; align-items: center; gap: 11px; padding: 0.7rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); cursor: pointer; text-align: left; width: 100%; transition: background 0.1s; -webkit-tap-highlight-color: transparent; }
+.person-btn:active { background: #e8e6e2; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; letter-spacing: 0.03em; }
+.avatar.new-av { background: #e2e0d8; color: var(--text-muted); font-size: 20px; font-weight: 400; }
+.person-name { font-size: 15px; font-weight: 500; }
+.person-hint { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.divider { height: 1px; background: var(--border); margin: 8px 0; }
+.empty { text-align: center; color: var(--text-muted); font-size: 14px; padding: 1.5rem 0 0.5rem; }
+/* Overlay */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: flex-end; justify-content: center; z-index: 100; }
+.overlay.active { display: flex; }
+.sheet { background: var(--surface); border-radius: 20px 20px 0 0; padding: 1.5rem 1.5rem 2.5rem; width: 100%; max-width: 480px; text-align: center; animation: slideUp 0.22s ease; }
+@keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 1.5rem; }
+.big-avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; margin: 0 auto 1rem; letter-spacing: 0.03em; }
+.sheet h2 { font-size: 20px; font-weight: 600; margin-bottom: 0.2rem; }
+.sheet-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 1.25rem; }
+.manual-fields { display: none; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; }
+.manual-fields.active { display: flex; }
+.manual-fields input { padding: 0.72rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 16px; background: var(--bg); color: var(--text); outline: none; text-align: center; width: 100%; -webkit-appearance: none; }
+.manual-fields input:focus { border-color: #999; }
+.btn-ok { width: 100%; padding: 0.9rem; background: var(--accent); color: var(--accent-fg); border: none; border-radius: var(--radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; -webkit-tap-highlight-color: transparent; }
+.btn-ok:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-ok:active:not(:disabled) { opacity: 0.8; }
+.btn-cancel { width: 100%; padding: 0.7rem; background: transparent; color: var(--text-muted); border: none; font-size: 14px; cursor: pointer; margin-top: 0.4rem; }
+.err { font-size: 13px; color: #a32d2d; margin-top: 0.5rem; min-height: 1.1em; }
+/* Success */
+#success-screen { display: none; position: fixed; inset: 0; background: var(--bg); flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 200; }
+#success-screen.active { display: flex; }
+.check-ring { width: 110px; height: 110px; border-radius: 50%; background: #eaf3de; border: 3px solid #97c459; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.checkmark { stroke-dasharray: 60; stroke-dashoffset: 60; animation: drawCheck 0.45s 0.25s ease forwards; }
+@keyframes drawCheck { to { stroke-dashoffset: 0; } }
+.presente-label { font-size: 34px; font-weight: 700; color: #27500a; letter-spacing: -0.02em; margin-bottom: 0.35rem; animation: fadeUp 0.3s 0.4s ease both; }
+.presente-name { font-size: 17px; color: #3b6d11; margin-bottom: 0.25rem; animation: fadeUp 0.3s 0.5s ease both; }
+.presente-date { font-size: 14px; color: var(--text-muted); margin-bottom: 2.5rem; animation: fadeUp 0.3s 0.55s ease both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.btn-back { padding: 0.75rem 2.2rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 15px; cursor: pointer; animation: fadeUp 0.3s 0.65s ease both; -webkit-tap-highlight-color: transparent; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.65s linear infinite; vertical-align: -3px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="main-view" style="width:100%;max-width:420px;">
+  <header>
+    <div class="label">Magazzino</div>
+    <h1>Registro presenze</h1>
+    <p class="sub">Seleziona il tuo nome per registrare l'entrata</p>
+  </header>
+  <div class="card">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" id="search" placeholder="Cerca nome…" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+    </div>
+    <div class="list-wrap" id="list"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="big-avatar" id="confirm-avatar"></div>
+    <h2 id="confirm-name-label"></h2>
+    <p class="sheet-sub" id="confirm-sub"></p>
+    <div class="manual-fields" id="manual-fields">
+      <input type="text" id="input-nome" placeholder="Nome" autocapitalize="words" autocomplete="given-name">
+      <input type="text" id="input-cognome" placeholder="Cognome" autocapitalize="words" autocomplete="family-name">
+    </div>
+    <button class="btn-ok" id="btn-ok" onclick="submitPresenza()">✓ Confermo la presenza</button>
+    <div class="err" id="err-msg"></div>
+    <button class="btn-cancel" onclick="closeOverlay()">Annulla</button>
+  </div>
+</div>
+
+<div id="success-screen">
+  <div class="check-ring">
+    <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+      <polyline class="checkmark" points="12,27 23,38 42,16"
+        stroke="#27500a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="presente-label">Presente!</div>
+  <div class="presente-name" id="s-name"></div>
+  <div class="presente-date" id="s-date"></div>
+  <button class="btn-back" onclick="resetApp()">← Torna all'elenco</button>
+</div>
+
+<script>
+// ── CONFIGURAZIONE ──────────────────────────────────────────
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGAnf2zLnU2fz_auF9DfwrUwT0EnFkvmIRMypvVZ2Ua6ypO84K7UqWmwv0tQ6DvsOYpg/exec";
+
+const PERSONE = [
+  "Anna Ferrari",
+  "Chiara Gallo",
+  "Davide Marino",
+  "Elena Conti",
+  "Francesco Bruno",
+  "Giulia Bianchi",
+  "Luca Verdi",
+  "Marco Colombo",
+  "Mario Rossi",
+  "Sara Ricci",
+].sort((a, b) => a.localeCompare(b, "it"));
+// ────────────────────────────────────────────────────────────
+
+let selectedPerson = null;
+let isNew = false;
+
+function initials(name) {
+  return name.trim().split(/\s+/).map(p => p[0]).join("").toUpperCase().slice(0,2);
+}
+
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+function todayDisplay() {
+  return new Date().toLocaleDateString("it-IT", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+}
+
+function monthSheetName() {
+  const d = new Date();
+  const s = d.toLocaleDateString("it-IT", { month:"long", year:"numeric" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function renderList(filter) {
+  filter = (filter || "").toLowerCase().trim();
+  const el = document.getElementById("list");
+  const filtered = PERSONE.filter(p => p.toLowerCase().includes(filter));
+  let html = "";
+
+  if (filtered.length > 0) {
+    const groups = {};
+    filtered.forEach(p => {
+      const l = p[0].toUpperCase();
+      if (!groups[l]) groups[l] = [];
+      groups[l].push(p);
+    });
+    Object.keys(groups).sort().forEach(letter => {
+      if (!filter) html += '<div class="letter-label">' + letter + '</div>';
+      groups[letter].forEach(p => {
+        const esc = p.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+        html += '<button class="person-btn" onclick="openConfirm(\'' + esc + '\',false)">'
+          + '<div class="avatar">' + initials(p) + '</div>'
+          + '<div class="person-name">' + p + '</div>'
+          + '</button>';
+      });
+    });
+  } else {
+    html += '<div class="empty">Nessun risultato per &ldquo;' + filter + '&rdquo;</div>';
+  }
+
+  html += '<div class="divider"></div>'
+    + '<button class="person-btn" onclick="openConfirm(\'\',true)">'
+    + '<div class="avatar new-av">+</div>'
+    + '<div><div class="person-name">Nuovo nominativo</div>'
+    + '<div class="person-hint">Inserisci nome e cognome manualmente</div></div>'
+    + '</button>';
+
+  el.innerHTML = html;
+}
+
+function openConfirm(name, isNewPerson) {
+  isNew = isNewPerson;
+  selectedPerson = isNewPerson ? null : name;
+  const av = document.getElementById("confirm-avatar");
+  const nl = document.getElementById("confirm-name-label");
+  const sub = document.getElementById("confirm-sub");
+  const mf = document.getElementById("manual-fields");
+  const btn = document.getElementById("btn-ok");
+  document.getElementById("err-msg").textContent = "";
+  btn.disabled = false;
+  btn.innerHTML = "✓ Confermo la presenza";
+
+  if (isNewPerson) {
+    av.textContent = "+";
+    av.style.cssText = "background:#e2e0d8;color:var(--text-muted);font-size:26px;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;";
+    nl.textContent = "Nuovo nominativo";
+    sub.textContent = "Inserisci il tuo nome e cognome";
+    mf.classList.add("active");
+    document.getElementById("input-nome").value = "";
+    document.getElementById("input-cognome").value = "";
+    setTimeout(() => document.getElementById("input-nome").focus(), 280);
+  } else {
+    av.textContent = initials(name);
+    av.style.cssText = "background:var(--accent);color:var(--accent-fg);font-size:20px;font-weight:600;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;letter-spacing:0.03em;";
+    nl.textContent = name;
+    sub.textContent = "Confermi la tua presenza?";
+    mf.classList.remove("active");
+  }
+  document.getElementById("overlay").classList.add("active");
+}
+
+function closeOverlay() {
+  document.getElementById("overlay").classList.remove("active");
+  selectedPerson = null; isNew = false;
+}
+
+async function submitPresenza() {
+  const btn = document.getElementById("btn-ok");
+  const errEl = document.getElementById("err-msg");
+  errEl.textContent = "";
+  let nome;
+
+  if (isNew) {
+    const n = document.getElementById("input-nome").value.trim();
+    const c = document.getElementById("input-cognome").value.trim();
+    if (!n || !c) { errEl.textContent = "Inserisci sia il nome che il cognome."; return; }
+    nome = n + " " + c;
+  } else {
+    nome = selectedPerson;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Invio in corso…';
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome: nome, data: todayISO(), foglio: monthSheetName() })
+    });
+    closeOverlay();
+    showSuccess(nome);
+  } catch(e) {
+    errEl.textContent = "Errore di rete. Riprova.";
+    btn.disabled = false;
+    btn.innerHTML = "✓ Confermo la presenza";
+  }
+}
+
+function showSuccess(nome) {
+  document.getElementById("s-name").textContent = nome;
+  document.getElementById("s-date").textContent = todayDisplay();
+  const poly = document.querySelector(".checkmark");
+  poly.style.animation = "none"; poly.getBoundingClientRect(); poly.style.animation = "";
+  document.getElementById("success-screen").classList.add("active");
+}
+
+function resetApp() {
+  document.getElementById("success-screen").classList.remove("active");
+  document.getElementById("search").value = "";
+  renderList();
+}
+
+document.getElementById("search").addEventListener("input", e => renderList(e.target.value));
+document.getElementById("overlay").addEventListener("click", e => { if (e.target.id === "overlay") closeOverlay(); });
+
+renderList();
+</script>
+</body>
+</html>
